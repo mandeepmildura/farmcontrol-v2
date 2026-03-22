@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FarmControl — Sandy Soil Automations</title>
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<!-- Plotly -->
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2"></script>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Public+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+
+<!-- Tailwind config — Precision Earth design system -->
+<script>
+tailwind.config = {
+  darkMode: "class",
+  theme: { extend: {
+    colors: {
+      "surface": "#f9f9f6", "surface-container-low": "#f3f4f1",
+      "surface-container": "#eeeeeb", "surface-container-high": "#e8e8e5",
+      "surface-container-highest": "#e2e3e0", "surface-container-lowest": "#ffffff",
+      "surface-dim": "#dadad7", "outline": "#737971", "outline-variant": "#c2c8bf",
+      "on-surface": "#1a1c1a", "on-surface-variant": "#424841",
+      "primary": "#17361d", "primary-container": "#2e4d32", "primary-fixed": "#c7ecc7",
+      "primary-fixed-dim": "#acd0ac", "on-primary": "#ffffff",
+      "on-primary-fixed-variant": "#2f4e33", "inverse-primary": "#acd0ac",
+      "secondary": "#12629d", "secondary-fixed": "#d0e4ff",
+      "on-secondary-container": "#004c7e", "tertiary": "#5f1400",
+      "tertiary-fixed": "#ffdbd1", "on-tertiary-fixed-variant": "#872000",
+      "error": "#ba1a1a", "error-container": "#ffdad6",
+      "inverse-surface": "#2f312f", "on-tertiary": "#ffffff",
+    },
+    fontFamily: {
+      "headline": ["Space Grotesk", "sans-serif"],
+      "body": ["Public Sans", "sans-serif"],
+      "label": ["Public Sans", "sans-serif"],
+    },
+    borderRadius: { DEFAULT: "0.125rem", lg: "0.25rem", xl: "0.5rem", full: "0.75rem" },
+    boxShadow: { card: "0 12px 32px rgba(26,28,26,0.06)" },
+  }},
+}
+</script>
+
+<style>
+.material-symbols-outlined { font-variation-settings: 'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; }
+body { font-family: 'Public Sans', sans-serif; background:#f9f9f6; }
+h1,h2,h3 { font-family: 'Space Grotesk', sans-serif; }
+
+/* Nav */
+.nav-item { display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 12px;color:#737971;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;font-family:'Public Sans',sans-serif;border:none;background:transparent;cursor:pointer;gap:2px;transition:all .2s; }
+.nav-item .material-symbols-outlined { font-size:22px; }
+.nav-item.active { background:linear-gradient(135deg,#17361d,#2e4d32);color:white;border-radius:6px; }
+.nav-item-desktop { display:flex;align-items:center;justify-content:center;width:48px;height:48px;color:#737971;border:none;background:transparent;cursor:pointer;transition:all .2s; }
+.nav-item-desktop.active { background:#17361d;color:white; }
+.nav-item-desktop:hover:not(.active) { color:#17361d;background:#e8e8e5; }
+
+/* Connection badge */
+.conn-badge { display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;padding:4px 12px;border-radius:99px; }
+.conn-badge.connected { background:#c7ecc7;color:#17361d; }
+.conn-badge.connecting { background:#d0e4ff;color:#12629d; }
+.conn-badge.error { background:#ffdad6;color:#ba1a1a; }
+.conn-dot { width:6px;height:6px;border-radius:50%;background:currentColor; }
+
+/* Board status */
+.board-status { display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em; }
+.board-status.online { background:#c7ecc7;color:#17361d; }
+.board-status.offline { background:#e8e8e5;color:#737971; }
+
+/* Admin badge */
+.admin-badge { font-size:9px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;padding:2px 8px;background:#17361d;color:white;border-radius:2px; }
+
+/* Zone cards (JS-built) */
+.zone-card { background:#ffffff;padding:24px;display:flex;flex-direction:column;justify-content:space-between;min-height:220px;box-shadow:0 12px 32px rgba(26,28,26,.06);position:relative;overflow:hidden;transition:all .2s; }
+.zone-card.offline-zone { opacity:.5;pointer-events:none; }
+
+/* Zone mini timeline */
+.zone-mini-timeline { display:flex;height:3px;width:100%;background:#e8e8e5;position:relative;overflow:hidden;border-radius:2px;margin-top:8px; }
+.zone-mini-bar { height:100%;flex-shrink:0; }
+
+/* Zone schedule board */
+.zsb-row { display:grid;grid-template-columns:8px 1fr auto auto;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #e8e8e5; }
+.zsb-swatch { width:8px;height:8px;border-radius:50%; }
+.zsb-name { font-size:12px;font-weight:600;color:#1a1c1a; }
+.zsb-pill { font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;padding:2px 8px;border-radius:99px;background:#e8e8e5;color:#737971; }
+.zsb-pill.running { background:#c7ecc7;color:#17361d; }
+.zsb-pill.next { background:#d0e4ff;color:#12629d; }
+.zsb-tl { position:relative;height:4px;background:#e8e8e5;border-radius:2px;overflow:visible;min-width:80px; }
+.zsb-tl-seg { position:absolute;height:100%;border-radius:1px; }
+.zsb-tl-now { position:absolute;top:-2px;width:2px;height:8px;background:#17361d;border-radius:1px; }
+.zsb-countdown { font-size:10px;color:#424841; }
+
+/* Zone activity log */
+.zal-row { display:grid;grid-template-columns:8px 1fr 2fr auto auto;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #e8e8e5;font-size:11px; }
+.zal-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+.zal-zone { font-weight:600;color:#1a1c1a; }
+.zal-event { color:#424841; }
+.zal-time { color:#737971;font-size:10px; }
+.zal-dur { color:#737971;font-size:10px;text-align:right; }
+.zal-empty { padding:32px;text-align:center;color:#737971;font-size:12px; }
+
+/* Event log */
+.log-list { list-style:none;padding:0;margin:0;font-size:11px; }
+.log-list li { display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #e8e8e5; }
+.log-list li.alert { color:#ba1a1a; }
+.log-list li.system { color:#424841; }
+.log-time { color:#737971;flex-shrink:0;font-family:monospace; }
+.log-msg { flex:1; }
+.log-empty { color:#737971;text-align:center;padding:16px;display:block; }
+
+/* Filter/backwash */
+.state-pill { display:inline-flex;align-items:center;padding:4px 14px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;background:#e8e8e5;color:#737971; }
+.state-pill.IDLE { background:#e8e8e5;color:#737971; }
+.state-pill.TRIGGERED { background:#d0e4ff;color:#12629d; }
+.state-pill.BACKWASHING { background:#c7ecc7;color:#17361d; }
+.state-pill.RECOVERING { background:#ffdbd1;color:#872000; }
+.state-pill.FAULT { background:#ffdad6;color:#ba1a1a; }
+.fault-banner { display:none;align-items:center;gap:8px;padding:10px 16px;background:#ffdad6;color:#ba1a1a;font-size:12px;font-weight:600;border-radius:4px;margin-top:12px; }
+.fault-banner.visible { display:flex; }
+
+/* Card bar */
+.card-bar { height:3px;background:#e8e8e5;border-radius:2px;margin-top:8px;overflow:hidden; }
+.card-bar-fill { height:100%;background:#17361d;border-radius:2px;transition:width .5s ease; }
+.card-bar-fill.warn { background:#d97706; }
+.card-bar-fill.crit { background:#ba1a1a; }
+.card-value { font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:700;color:#1a1c1a;line-height:1; }
+.card-value.warn { color:#d97706; }
+.card-value.good { color:#17361d; }
+.card-value.crit { color:#ba1a1a; }
+.card-label { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;margin-bottom:8px; }
+.card-unit { font-size:12px;color:#737971;margin-top:4px; }
+
+/* Pressure chart range buttons */
+.range-btn { padding:4px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;background:#e8e8e5;color:#737971;border:none;cursor:pointer; }
+.range-btn.active { background:#17361d;color:white; }
+
+/* Schedule modal */
+.modal-overlay { display:none;position:fixed;inset:0;z-index:100;background:rgba(26,28,26,.5);align-items:center;justify-content:center;padding:16px; }
+.modal-overlay.visible { display:flex; }
+.modal-box { background:#f9f9f6;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;padding:32px;position:relative; }
+.day-cb-label { display:flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid #c2c8bf;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;cursor:pointer;transition:.15s; }
+.day-cb-label.selected { background:#17361d;color:white;border-color:#17361d; }
+.day-cb-label input { display:none; }
+.sched-row { display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid #e8e8e5;font-size:11px; }
+.sched-day-tag { font-size:9px;padding:1px 4px;font-weight:700;color:#737971;background:#e8e8e5; }
+.sched-day-tag.active { background:#17361d;color:white; }
+
+/* Group cards */
+.group-card { background:#fff;padding:20px;box-shadow:0 12px 32px rgba(26,28,26,.06);position:relative;overflow:hidden; }
+
+/* Auth */
+.auth-tab { padding:8px 16px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;border:none;background:transparent;cursor:pointer;color:#737971;border-bottom:2px solid transparent; }
+.auth-tab.active { color:#17361d;border-bottom-color:#17361d; }
+.auth-err { display:none;padding:10px;background:#ffdad6;color:#ba1a1a;font-size:12px;font-weight:600;border-radius:2px;margin-top:8px; }
+.auth-err.visible { display:block; }
+
+/* Support banner */
+#supportBanner { background:#5f1400;color:white;padding:8px 24px;display:none;align-items:center;justify-content:space-between;font-size:12px;font-weight:600; }
+
+/* CSS vars for JS compatibility */
+:root {
+  --mono:'Public Sans',sans-serif; --sans:'Space Grotesk',sans-serif;
+  --text:#1a1c1a; --dim:#424841; --border:#c2c8bf;
+  --surface:#f9f9f6; --surface2:#e8e8e5; --bg:#f9f9f6;
+  --green:#17361d; --primary:#17361d; --blue:#12629d; --red:#ba1a1a;
+  --teal:#0d9488; --teal-bg:rgba(13,148,136,0.08);
+}
+
+/* Admin table */
+.admin-table { width:100%;border-collapse:collapse;font-size:11px; }
+.admin-table th { text-align:left;padding:8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;border-bottom:2px solid #c2c8bf; }
+.admin-table td { padding:8px;border-bottom:1px solid #e8e8e5;color:#1a1c1a; }
+.role-badge { font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:2px 6px; }
+.role-badge.admin { background:#c7ecc7;color:#17361d; }
+.role-badge.customer { background:#e8e8e5;color:#424841; }
+.btn { padding:8px 16px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;border:none;cursor:pointer;transition:.15s; }
+.btn.primary { background:#17361d;color:white; }
+.btn.danger { background:#ba1a1a;color:white; }
+.btn.secondary { background:#e8e8e5;color:#424841; }
+.btn.action { background:#17361d;color:white; }
+.btn.sm { padding:4px 10px;font-size:9px; }
+.btn:disabled { opacity:.5;cursor:not-allowed; }
+</style>
+</head>
+<body class="bg-surface min-h-screen">
+
+<!-- ════════════════════════════════════════════════════════
+     AUTH SCREEN
+════════════════════════════════════════════════════════ -->
+<div id="authScreen" class="min-h-screen flex">
+  <!-- Left panel — desktop only -->
+  <div class="hidden md:flex md:w-2/5 bg-primary flex-col justify-between p-12 relative overflow-hidden">
+    <!-- Background text -->
+    <div style="position:absolute;bottom:-40px;left:-20px;font-family:'Space Grotesk',sans-serif;font-size:120px;font-weight:900;color:rgba(255,255,255,0.04);line-height:1;user-select:none;letter-spacing:-4px">FARM<br>CTRL</div>
+    <!-- Top -->
+    <div>
+      <div class="flex items-center gap-3 mb-12">
+        <span class="material-symbols-outlined text-primary-fixed-dim" style="font-size:28px">grain</span>
+        <div>
+          <div style="font-family:'Public Sans',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#acd0ac">Sandy Soil Automations</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;color:white">Mildura, Victoria</div>
+        </div>
+      </div>
+      <h1 style="font-family:'Space Grotesk',sans-serif;font-size:48px;font-weight:700;color:white;line-height:1.05;letter-spacing:-2px">FARM<br>CONTROL</h1>
+      <p style="font-family:'Public Sans',sans-serif;font-size:14px;color:#acd0ac;margin-top:16px;line-height:1.6">Precision irrigation management for Australian farms. Real-time zone control, automated scheduling and pressure monitoring.</p>
+    </div>
+    <!-- Bottom -->
+    <div>
+      <div style="display:flex;gap:24px">
+        <div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;color:white">8</div>
+          <div style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#acd0ac">Zones</div>
+        </div>
+        <div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;color:white">24/7</div>
+          <div style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#acd0ac">Monitoring</div>
+        </div>
+        <div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;color:white">HA</div>
+          <div style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#acd0ac">Integrated</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right panel — login/signup -->
+  <div class="flex-1 flex items-center justify-center p-8 bg-surface-container-lowest">
+    <div style="width:100%;max-width:400px">
+      <!-- Logo (mobile) -->
+      <div class="flex md:hidden items-center gap-2 mb-8">
+        <span class="material-symbols-outlined text-primary">grain</span>
+        <span style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;color:#17361d">SANDY SOIL AUTOMATIONS</span>
+      </div>
+
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;color:#1a1c1a;margin-bottom:4px">Welcome back</h2>
+      <p style="font-family:'Public Sans',sans-serif;font-size:14px;color:#737971;margin-bottom:32px">Sign in to manage your irrigation system</p>
+
+      <!-- Tabs -->
+      <div class="flex border-b border-outline-variant mb-8">
+        <button class="auth-tab active" onclick="showTab('login')">Sign in</button>
+        <button class="auth-tab" onclick="showTab('signup')">Create account</button>
+      </div>
+
+      <!-- Login form -->
+      <div id="tabLogin">
+        <div class="mb-4">
+          <label style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:6px">Email address</label>
+          <input id="loginEmail" type="email" autocomplete="email" placeholder="you@farm.com"
+            class="w-full bg-surface-container-high border-b-2 border-outline px-4 py-3 font-body text-sm focus:outline-none focus:border-primary transition-colors appearance-none"
+            onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <div class="mb-6">
+          <label style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:6px">Password</label>
+          <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"
+            class="w-full bg-surface-container-high border-b-2 border-outline px-4 py-3 font-body text-sm focus:outline-none focus:border-primary transition-colors appearance-none"
+            onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <button onclick="doLogin()" class="btn primary w-full py-4" style="font-size:11px;letter-spacing:0.2em">Log in</button>
+      </div>
+
+      <!-- Signup form -->
+      <div id="tabSignup" style="display:none">
+        <div class="mb-4">
+          <label style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:6px">Full name</label>
+          <input id="signupName" type="text" autocomplete="name" placeholder="John Smith"
+            class="w-full bg-surface-container-high border-b-2 border-outline px-4 py-3 font-body text-sm focus:outline-none focus:border-primary transition-colors appearance-none">
+        </div>
+        <div class="mb-4">
+          <label style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:6px">Email address</label>
+          <input id="signupEmail" type="email" autocomplete="email" placeholder="you@farm.com"
+            class="w-full bg-surface-container-high border-b-2 border-outline px-4 py-3 font-body text-sm focus:outline-none focus:border-primary transition-colors appearance-none">
+        </div>
+        <div class="mb-6">
+          <label style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:6px">Password</label>
+          <input id="signupPass" type="password" autocomplete="new-password" placeholder="Min. 8 characters"
+            class="w-full bg-surface-container-high border-b-2 border-outline px-4 py-3 font-body text-sm focus:outline-none focus:border-primary transition-colors appearance-none">
+        </div>
+        <button onclick="doSignup()" class="btn primary w-full py-4" style="font-size:11px;letter-spacing:0.2em">Create account</button>
+      </div>
+
+      <!-- Error -->
+      <div id="authErr" class="auth-err mt-4"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     APP SCREEN
+════════════════════════════════════════════════════════ -->
+<div id="appScreen" style="display:none">
+
+  <!-- Support banner -->
+  <div id="supportBanner" style="display:none;align-items:center;justify-content:space-between">
+    <span>Support session: <b id="supportBannerName"></b></span>
+    <button onclick="endSupportSession()" class="btn sm secondary">End session</button>
+  </div>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-50 bg-surface-container-lowest border-b border-outline-variant" style="box-shadow:0 1px 4px rgba(26,28,26,0.06)">
+    <div class="max-w-7xl mx-auto px-4 md:px-6 h-14 flex items-center justify-between gap-4">
+      <!-- Left: logo -->
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <span class="material-symbols-outlined text-primary" style="font-size:22px">grain</span>
+        <span class="hidden sm:block" style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:#17361d;letter-spacing:0.02em">SANDY SOIL AUTOMATIONS</span>
+      </div>
+      <!-- Right: badges + user -->
+      <div class="flex items-center gap-2">
+        <div id="connBadge" class="conn-badge">
+          <div class="conn-dot"></div>
+          <span id="connText">Connecting...</span>
+        </div>
+        <span id="adminBadge" class="admin-badge" style="display:none">Admin</span>
+        <span id="userPill" style="font-family:'Public Sans',sans-serif;font-size:11px;color:#424841;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+        <button onclick="doLogout()" style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#737971;background:transparent;border:none;cursor:pointer;padding:4px 8px">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main layout: content + desktop floating nav -->
+  <div class="flex min-h-[calc(100vh-56px)]">
+
+    <!-- Main content -->
+    <main class="flex-1 min-w-0">
+      <div class="max-w-7xl mx-auto px-4 md:px-6 pt-8 pb-32 md:pb-10">
+
+        <!-- ══════════════════════════════════════
+             VIEW: DASHBOARD
+        ══════════════════════════════════════ -->
+        <div id="view-dashboard">
+
+          <!-- Hero section -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end mb-10">
+            <!-- Left 8-col: headline + metrics -->
+            <div class="lg:col-span-8">
+              <span class="font-label text-[10px] font-bold uppercase tracking-[0.2em] text-outline mb-3 block">Live Status</span>
+              <h1 class="font-headline text-5xl md:text-6xl font-bold tracking-tighter leading-none mb-8 text-on-surface">IRRIGATION<br><span class="text-primary">FIELD STATUS</span></h1>
+              <!-- Metric tiles -->
+              <div class="grid grid-cols-3 gap-1">
+                <div class="bg-surface-container-low p-5 flex flex-col justify-between">
+                  <span class="card-label">Supply Pressure</span>
+                  <div>
+                    <span id="dashSupplyVal" class="card-value">—</span>
+                    <span class="card-unit">PSI</span>
+                  </div>
+                  <div class="card-bar mt-2"><div id="dashSupplyBar" class="card-bar-fill" style="width:0%"></div></div>
+                </div>
+                <div class="bg-surface-container-low p-5 flex flex-col justify-between">
+                  <span class="card-label">Active Zones</span>
+                  <div>
+                    <span id="activeZonesVal" class="card-value">00</span>
+                    <span class="card-unit">/ 8</span>
+                  </div>
+                </div>
+                <div class="bg-surface-container-low p-5 flex flex-col justify-between">
+                  <span class="card-label">System</span>
+                  <span id="dashIrrigBadge" class="board-status offline">Offline</span>
+                </div>
+              </div>
+            </div>
+            <!-- Right 4-col: status card -->
+            <div class="lg:col-span-4">
+              <div class="bg-primary text-white p-6">
+                <span style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#acd0ac;display:block;margin-bottom:4px">Connection</span>
+                <div id="dashConnStatus" style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;margin-bottom:16px">Awaiting data</div>
+                <div style="border-top:1px solid rgba(172,208,172,0.3);padding-top:12px;margin-top:4px">
+                  <span style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#acd0ac;display:block;margin-bottom:4px">Next Watering</span>
+                  <div id="dashNextWater" style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:white">Loading schedules…</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Zone Status Board -->
+          <div class="mb-10">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-headline text-xl font-bold text-on-surface">Today's Irrigation Schedule</h3>
+              <span id="zsbClock" style="font-family:'Public Sans',monospace;font-size:13px;color:#737971"></span>
+            </div>
+            <div class="bg-surface-container-lowest p-6" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+              <div id="zoneSchedBoard"></div>
+            </div>
+          </div>
+
+          <!-- Upcoming + Event Log -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Upcoming schedules (2-col) -->
+            <div class="lg:col-span-2">
+              <div id="upcomingSchedules" class="bg-surface-container-lowest p-6 border-l-4 border-secondary" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+                <span class="font-label text-[10px] font-bold uppercase tracking-[0.2em] text-outline mb-2 block">Coming Up</span>
+                <h3 class="font-headline text-lg font-bold text-on-surface mb-4">Upcoming Schedules</h3>
+                <div id="upcomingList"></div>
+              </div>
+            </div>
+            <!-- Mini event log (1-col) -->
+            <div class="bg-surface-container-lowest p-6" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+              <div class="flex items-center justify-between mb-4">
+                <span class="font-label text-[10px] font-bold uppercase tracking-[0.2em] text-outline">Recent Events</span>
+                <button onclick="clearLog()" style="font-size:9px;font-weight:700;text-transform:uppercase;color:#737971;background:none;border:none;cursor:pointer;letter-spacing:0.1em">Clear</button>
+              </div>
+              <ul id="logList" class="log-list">
+                <li><span class="log-empty">No events yet</span></li>
+              </ul>
+            </div>
+          </div>
+
+        </div><!-- /view-dashboard -->
+
+        <!-- ══════════════════════════════════════
+             VIEW: ZONES
+        ══════════════════════════════════════ -->
+        <div id="view-zones" style="display:none">
+
+          <!-- Editorial header -->
+          <div class="mb-8">
+            <span class="font-label text-[10px] font-bold uppercase tracking-[0.2em] text-outline mb-2 block">System Status: Optimal</span>
+            <h2 class="font-headline text-5xl font-bold tracking-tighter text-on-surface leading-none mb-3">Zone Control</h2>
+            <p class="font-body text-sm text-on-surface-variant">Manage real-time irrigation across all sectors. Double-click any zone name to rename it.</p>
+          </div>
+
+          <!-- Controls bar -->
+          <div id="irrigSection" class="mb-6">
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-6 p-4 bg-surface-container-low">
+              <div class="flex items-center gap-4">
+                <span id="irrigBadge" class="board-status offline">Offline</span>
+                <div class="flex items-center gap-2">
+                  <span id="irrigSupplyVal" class="font-headline text-2xl font-bold text-on-surface">—</span>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971">PSI</div>
+                    <div class="card-bar" style="width:80px;margin-top:4px"><div id="irrigSupplyBar" class="card-bar-fill" style="width:0%"></div></div>
+                  </div>
+                </div>
+              </div>
+              <button id="btnAllOff" onclick="irrigAllOff()" disabled class="btn danger" style="font-size:10px;letter-spacing:0.15em">
+                <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">power_off</span>
+                All Zones Off
+              </button>
+            </div>
+
+            <!-- Zone grid -->
+            <div id="zoneGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <!-- JS builds zone cards here -->
+            </div>
+
+            <!-- Offline overlay -->
+            <div id="irrigOffline" style="display:none;text-align:center;padding:48px 24px;color:#737971">
+              <span class="material-symbols-outlined" style="font-size:48px;display:block;margin-bottom:12px;opacity:.3">wifi_off</span>
+              <span style="font-family:'Public Sans',sans-serif;font-size:13px;font-weight:600">Irrigation board offline</span>
+            </div>
+          </div>
+
+          <!-- Zone Groups -->
+          <div class="mt-10">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <span class="font-label text-[10px] font-bold uppercase tracking-[0.2em] text-outline mb-1 block">Multi-Zone</span>
+                <h3 class="font-headline text-xl font-bold text-on-surface">Zone Groups</h3>
+              </div>
+              <button onclick="openGroupModal(null)" class="btn primary" style="font-size:10px;letter-spacing:0.15em">
+                <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">add</span>
+                New Group
+              </button>
+            </div>
+            <div id="groupCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <!-- JS builds group cards here -->
+            </div>
+          </div>
+
+        </div><!-- /view-zones -->
+
+        <!-- ══════════════════════════════════════
+             VIEW: PRESSURE
+        ══════════════════════════════════════ -->
+        <div id="view-pressure" style="display:none">
+
+          <!-- Editorial header -->
+          <div class="mb-8">
+            <span class="font-label text-[10px] font-bold uppercase tracking-[0.2em] text-outline mb-2 block">Filter Station</span>
+            <h2 class="font-headline text-5xl font-bold tracking-tighter text-on-surface leading-none mb-3">Pressure Monitor</h2>
+            <p class="font-body text-sm text-on-surface-variant">Real-time inlet, outlet and differential pressure with automated backwash control.</p>
+          </div>
+
+          <!-- Filter header / status bar -->
+          <div id="filterHeader" style="display:none" class="flex items-center justify-between mb-6 p-4 bg-surface-container-low">
+            <div class="flex items-center gap-4">
+              <span id="filterStatus" class="board-status offline">Offline</span>
+              <span id="filterUptime" style="font-family:'Public Sans',sans-serif;font-size:11px;color:#737971;display:none"></span>
+            </div>
+            <span style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971">ALR-V13 Filter Station</span>
+          </div>
+
+          <!-- Filter section -->
+          <div id="filterSection" style="display:none">
+            <!-- Pressure bento -->
+            <div class="grid grid-cols-3 gap-1 mb-6">
+              <div class="bg-surface-container-lowest p-6" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+                <span class="card-label">Inlet Pressure</span>
+                <span id="inletVal" class="card-value">—</span>
+                <span class="card-unit">PSI</span>
+                <div class="card-bar"><div id="inletBar" class="card-bar-fill" style="width:0%"></div></div>
+              </div>
+              <div class="bg-surface-container-lowest p-6" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+                <span class="card-label">Outlet Pressure</span>
+                <span id="outletVal" class="card-value">—</span>
+                <span class="card-unit">PSI</span>
+                <div class="card-bar"><div id="outletBar" class="card-bar-fill" style="width:0%"></div></div>
+              </div>
+              <div class="bg-surface-container-lowest p-6" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+                <span class="card-label">Differential</span>
+                <span id="diffVal" class="card-value good">—</span>
+                <span class="card-unit">PSI</span>
+                <div class="card-bar"><div id="diffBar" class="card-bar-fill" style="width:0%"></div></div>
+              </div>
+            </div>
+
+            <!-- Backwash controls -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div class="bg-surface-container-lowest p-6" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+                <span class="card-label">Backwash State</span>
+                <div class="flex items-center gap-3 mt-2 mb-4">
+                  <span id="statePill" class="state-pill IDLE">IDLE</span>
+                  <div>
+                    <div style="font-size:10px;color:#737971">Last: <span id="lastBW" style="font-weight:600;color:#1a1c1a">never</span></div>
+                    <div style="font-size:10px;color:#737971">Elapsed: <span id="elapsed" style="font-weight:600;color:#1a1c1a">—</span></div>
+                  </div>
+                </div>
+                <div class="flex gap-3">
+                  <button id="btnStart" onclick="mqttCmd('start')" class="btn action" style="font-size:10px;letter-spacing:0.15em">
+                    <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">play_arrow</span>
+                    Start Backwash
+                  </button>
+                  <button id="btnStop" onclick="mqttCmd('stop')" disabled class="btn secondary" style="font-size:10px;letter-spacing:0.15em">
+                    <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">stop</span>
+                    Stop
+                  </button>
+                </div>
+                <div id="faultBanner" class="fault-banner">
+                  <span class="material-symbols-outlined" style="font-size:16px">error</span>
+                  Fault: <span id="faultReason">—</span>
+                  <button onclick="mqttCmd('reset')" class="btn sm danger" style="margin-left:auto">Reset</button>
+                </div>
+              </div>
+              <div id="filterOffline" style="display:none;background:#f3f4f1;padding:24px;text-align:center;color:#737971">
+                <span class="material-symbols-outlined" style="font-size:36px;display:block;margin-bottom:8px;opacity:.3">wifi_off</span>
+                <span style="font-family:'Public Sans',sans-serif;font-size:12px">Filter board offline</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pressure chart section -->
+          <div id="filterChartSection" style="display:none">
+            <div class="bg-surface-container-lowest p-6 mb-4" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+              <div class="flex flex-wrap items-center gap-2 mb-4">
+                <span class="card-label" style="margin:0">Range:</span>
+                <button id="r15"   class="range-btn active" onclick="setRange(15)">15 min</button>
+                <button id="r60"   class="range-btn"        onclick="setRange(60)">1 hr</button>
+                <button id="r240"  class="range-btn"        onclick="setRange(240)">4 hr</button>
+                <button id="r1440" class="range-btn"        onclick="setRange(1440)">24 hr</button>
+                <button id="rCustom" class="range-btn"      onclick="toggleDatePicker()">Custom</button>
+                <span id="chartLabel" style="font-family:'Public Sans',sans-serif;font-size:11px;color:#737971;margin-left:auto"></span>
+              </div>
+              <!-- Date picker -->
+              <div id="datePicker" style="display:none;flex-wrap:wrap;gap:12px;align-items:center;padding:12px;background:#e8e8e5;margin-bottom:16px">
+                <div>
+                  <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#737971;display:block;margin-bottom:4px">From</label>
+                  <input id="dtFrom" type="datetime-local" class="bg-surface-container-lowest border-b-2 border-outline px-3 py-2 font-body text-sm focus:outline-none focus:border-primary">
+                </div>
+                <div>
+                  <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#737971;display:block;margin-bottom:4px">To</label>
+                  <input id="dtTo" type="datetime-local" class="bg-surface-container-lowest border-b-2 border-outline px-3 py-2 font-body text-sm focus:outline-none focus:border-primary">
+                </div>
+                <div class="flex gap-2 items-end" style="margin-top:20px">
+                  <button onclick="loadPresets('today')" class="btn sm secondary">Today</button>
+                  <button onclick="loadPresets('yesterday')" class="btn sm secondary">Yesterday</button>
+                  <button onclick="loadCustomRange()" class="btn sm action">Load</button>
+                </div>
+                <span id="dateRangeStatus" style="font-size:11px;color:#737971;font-family:'Public Sans',sans-serif"></span>
+              </div>
+              <div id="pressureChart" style="height:280px"></div>
+            </div>
+            <div class="bg-surface-container-lowest p-6" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+              <span class="card-label">Supply Pressure Gauge</span>
+              <div id="gaugeChart" style="height:200px"></div>
+            </div>
+          </div>
+
+          <!-- No filter device message -->
+          <div id="filterNoDevice" style="text-align:center;padding:64px 24px;color:#737971">
+            <span class="material-symbols-outlined" style="font-size:48px;display:block;margin-bottom:12px;opacity:.3">filter_alt_off</span>
+            <span style="font-family:'Public Sans',sans-serif;font-size:13px;font-weight:600">No filter device assigned to your account</span>
+          </div>
+
+        </div><!-- /view-pressure -->
+
+        <!-- ══════════════════════════════════════
+             VIEW: SCHEDULE
+        ══════════════════════════════════════ -->
+        <div id="view-schedule" style="display:none">
+
+          <!-- Editorial header -->
+          <div class="flex items-end justify-between mb-8 gap-4">
+            <div>
+              <span class="font-label text-[10px] font-bold uppercase tracking-[0.2em] text-outline mb-2 block">Management Hub</span>
+              <h2 class="font-headline text-5xl font-bold tracking-tighter text-on-surface leading-none">Schedule</h2>
+            </div>
+            <button onclick="openScheduleModal(1)" class="btn primary flex-shrink-0" style="font-size:10px;letter-spacing:0.15em">
+              <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">add</span>
+              New Routine
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+            <!-- Weekly grid (8-col) -->
+            <div class="md:col-span-8">
+              <div class="bg-surface-container-lowest p-6" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+                <div class="flex items-center justify-between mb-4">
+                  <span class="font-label text-[10px] font-bold uppercase tracking-[0.2em] text-outline">Weekly Cycle</span>
+                </div>
+                <div id="weeklyGrid" class="grid grid-cols-7 gap-2">
+                  <!-- JS builds weekly grid here -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Sidebar (4-col) -->
+            <div class="md:col-span-4 flex flex-col gap-4">
+              <!-- Smart override card -->
+              <div class="bg-surface-container-lowest p-6 border-l-4 border-tertiary" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+                <span class="font-label text-[10px] font-bold uppercase tracking-[0.2em] text-outline mb-2 block">Smart Override</span>
+                <h4 class="font-headline text-lg font-bold text-on-surface mb-2">Precipitation Guard</h4>
+                <p class="font-body text-xs text-on-surface-variant">Schedules automatically pause during and after rainfall events. Manual overrides remain active.</p>
+              </div>
+              <!-- Next task card -->
+              <div class="bg-primary text-white p-6">
+                <span style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#acd0ac;display:block;margin-bottom:4px">Next Task</span>
+                <div id="nextTaskZone" style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;color:white;margin-bottom:4px">—</div>
+                <div id="nextTaskTime" style="font-family:'Public Sans',sans-serif;font-size:13px;color:#acd0ac;margin-bottom:2px">No schedule</div>
+                <div id="nextTaskDur" style="font-family:'Public Sans',sans-serif;font-size:12px;color:#acd0ac">—</div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /view-schedule -->
+
+        <!-- ══════════════════════════════════════
+             VIEW: LOG
+        ══════════════════════════════════════ -->
+        <div id="view-log" style="display:none">
+
+          <!-- Editorial header -->
+          <div class="mb-8">
+            <span class="font-label text-[10px] font-bold uppercase tracking-[0.2em] text-outline mb-2 block">History</span>
+            <h2 class="font-headline text-5xl font-bold tracking-tighter text-on-surface leading-none">Activity Log</h2>
+          </div>
+
+          <!-- Zone activity section -->
+          <div class="mb-8">
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+              <h3 class="font-headline text-xl font-bold text-on-surface">Zone Runs</h3>
+              <div class="flex items-center gap-3">
+                <select id="zoneActivityDays" onchange="refreshZoneActivity()"
+                  class="bg-surface-container-high border-b-2 border-outline px-3 py-2 font-body text-xs focus:outline-none focus:border-primary appearance-none">
+                  <option value="1">Last 24 hours</option>
+                  <option value="7" selected>Last 7 days</option>
+                  <option value="14">Last 14 days</option>
+                  <option value="30">Last 30 days</option>
+                </select>
+                <select id="zoneActivityFilter" onchange="refreshZoneActivity()"
+                  class="bg-surface-container-high border-b-2 border-outline px-3 py-2 font-body text-xs focus:outline-none focus:border-primary appearance-none">
+                  <option value="0">All zones</option>
+                  <option value="1">Zone 1</option>
+                  <option value="2">Zone 2</option>
+                  <option value="3">Zone 3</option>
+                  <option value="4">Zone 4</option>
+                  <option value="5">Zone 5</option>
+                  <option value="6">Zone 6</option>
+                  <option value="7">Zone 7</option>
+                  <option value="8">Zone 8</option>
+                </select>
+              </div>
+            </div>
+            <div class="bg-surface-container-lowest p-6" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+              <div id="zoneActivityLog">
+                <div class="zal-empty">Loading activity...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- System event log -->
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-headline text-xl font-bold text-on-surface">System Events</h3>
+              <button onclick="clearLog()" class="btn sm secondary" style="letter-spacing:0.1em">Clear</button>
+            </div>
+            <div class="bg-surface-container-lowest p-6" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+              <ul id="logListFull" class="log-list">
+                <li><span class="log-empty">No events yet</span></li>
+              </ul>
+            </div>
+          </div>
+
+        </div><!-- /view-log -->
+
+        <!-- ══════════════════════════════════════
+             VIEW: ADMIN
+        ══════════════════════════════════════ -->
+        <div id="view-admin" style="display:none">
+
+          <!-- Editorial header -->
+          <div class="mb-8">
+            <span class="font-label text-[10px] font-bold uppercase tracking-[0.2em] text-outline mb-2 block">System Management</span>
+            <h2 class="font-headline text-5xl font-bold tracking-tighter text-on-surface leading-none">Administration</h2>
+          </div>
+
+          <!-- Stats row -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-1 mb-8">
+            <div class="bg-surface-container-lowest p-5" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+              <span class="card-label">Customers</span>
+              <span id="statCustomers" class="font-headline text-4xl font-bold text-on-surface block">—</span>
+            </div>
+            <div class="bg-surface-container-lowest p-5" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+              <span class="card-label">Devices</span>
+              <span id="statDevices" class="font-headline text-4xl font-bold text-on-surface block">—</span>
+            </div>
+            <div class="bg-surface-container-lowest p-5" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+              <span class="card-label">Filter Units</span>
+              <span id="statFilters" class="font-headline text-4xl font-bold text-on-surface block">—</span>
+            </div>
+            <div class="bg-surface-container-lowest p-5" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+              <span class="card-label">Irrigation</span>
+              <span id="statIrrig" class="font-headline text-4xl font-bold text-on-surface block">—</span>
+            </div>
+          </div>
+
+          <!-- Customer table -->
+          <div class="bg-surface-container-lowest mb-6" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+            <div class="flex items-center justify-between p-6 border-b border-outline-variant">
+              <h3 class="font-headline text-lg font-bold text-on-surface">Customers</h3>
+              <div class="flex items-center gap-3">
+                <input oninput="filterCustomers(this.value)" placeholder="Search customers…"
+                  class="bg-surface-container-high border-b-2 border-outline px-3 py-2 font-body text-xs focus:outline-none focus:border-primary"
+                  style="width:200px">
+                <button onclick="openAddCustomer()" class="btn sm primary" style="letter-spacing:0.1em">Add Customer</button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Devices</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="customerRows">
+                  <tr><td colspan="5" style="text-align:center;color:#737971;padding:32px;font-size:12px">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Add device form -->
+          <div class="bg-surface-container-lowest p-6 mb-4" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+            <h3 class="font-headline text-lg font-bold text-on-surface mb-4">Add Device</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label class="card-label" style="display:block;margin-bottom:6px">Customer</label>
+                <select id="deviceCustomer" class="w-full bg-surface-container-high border-b-2 border-outline px-3 py-2 font-body text-xs focus:outline-none focus:border-primary appearance-none">
+                  <option value="">— select customer —</option>
+                </select>
+              </div>
+              <div>
+                <label class="card-label" style="display:block;margin-bottom:6px">Device ID</label>
+                <input id="deviceId" type="text" placeholder="irrigation-farm1"
+                  class="w-full bg-surface-container-high border-b-2 border-outline px-3 py-2 font-body text-xs focus:outline-none focus:border-primary">
+              </div>
+              <div>
+                <label class="card-label" style="display:block;margin-bottom:6px">Display Name</label>
+                <input id="deviceName" type="text" placeholder="Irrigation Controller"
+                  class="w-full bg-surface-container-high border-b-2 border-outline px-3 py-2 font-body text-xs focus:outline-none focus:border-primary">
+              </div>
+              <div>
+                <label class="card-label" style="display:block;margin-bottom:6px">Type</label>
+                <select id="deviceType" class="w-full bg-surface-container-high border-b-2 border-outline px-3 py-2 font-body text-xs focus:outline-none focus:border-primary appearance-none">
+                  <option value="irrigation">Irrigation</option>
+                  <option value="filter">Filter</option>
+                </select>
+              </div>
+              <div>
+                <label class="card-label" style="display:block;margin-bottom:6px">MQTT Topic Base</label>
+                <input id="deviceTopic" type="text" placeholder="farm/irrigation1"
+                  class="w-full bg-surface-container-high border-b-2 border-outline px-3 py-2 font-body text-xs focus:outline-none focus:border-primary">
+              </div>
+              <div>
+                <label class="card-label" style="display:block;margin-bottom:6px">Sort Order</label>
+                <input id="deviceSort" type="number" value="1" min="1"
+                  class="w-full bg-surface-container-high border-b-2 border-outline px-3 py-2 font-body text-xs focus:outline-none focus:border-primary">
+              </div>
+            </div>
+            <div id="addDeviceErr" style="display:none;padding:8px 12px;background:#ffdad6;color:#ba1a1a;font-size:12px;font-weight:600;margin-bottom:12px"></div>
+            <button onclick="addDevice()" class="btn primary" style="font-size:10px;letter-spacing:0.15em">Add Device</button>
+          </div>
+
+          <div id="adminContent"></div>
+
+        </div><!-- /view-admin -->
+
+      </div><!-- /max-w-7xl -->
+    </main><!-- /main -->
+
+    <!-- Desktop floating nav (right side) -->
+    <nav class="hidden md:flex flex-col items-center gap-1 py-6 px-2 bg-surface-container-lowest border-l border-outline-variant sticky top-14 h-[calc(100vh-56px)] self-start" style="min-width:64px">
+      <button class="nav-item-desktop active" data-view="dashboard" onclick="showView('dashboard')" title="Dashboard">
+        <span class="material-symbols-outlined">dashboard</span>
+      </button>
+      <button class="nav-item-desktop" data-view="zones" onclick="showView('zones')" title="Zones">
+        <span class="material-symbols-outlined">water_drop</span>
+      </button>
+      <button class="nav-item-desktop" data-view="pressure" onclick="showView('pressure')" title="Pressure">
+        <span class="material-symbols-outlined">speed</span>
+      </button>
+      <button class="nav-item-desktop" data-view="schedule" onclick="showView('schedule')" title="Schedule">
+        <span class="material-symbols-outlined">calendar_month</span>
+      </button>
+      <button class="nav-item-desktop" data-view="log" onclick="showView('log')" title="Activity Log">
+        <span class="material-symbols-outlined">history</span>
+      </button>
+      <!-- Admin button — hidden until admin login -->
+      <div class="flex-1"></div>
+      <button id="adminTabBtn" class="nav-item-desktop" data-view="admin" onclick="showView('admin')" title="Admin" style="display:none">
+        <span class="material-symbols-outlined">admin_panel_settings</span>
+      </button>
+    </nav>
+
+  </div><!-- /flex layout -->
+
+  <!-- Footer -->
+  <footer class="hidden md:flex items-center justify-between px-8 py-3 border-t border-outline-variant bg-surface-container-low" style="font-size:10px;color:#737971;font-family:'Public Sans',sans-serif">
+    <span id="footerName">FarmControl v2.0</span>
+    <span id="footerTime"></span>
+  </footer>
+
+  <!-- Mobile bottom nav -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface-container-lowest border-t border-outline-variant flex items-center justify-around px-2 py-2" style="box-shadow:0 -2px 12px rgba(26,28,26,0.06)">
+    <button class="nav-item active" data-view="dashboard" onclick="showView('dashboard')">
+      <span class="material-symbols-outlined">dashboard</span>
+      Dash
+    </button>
+    <button class="nav-item" data-view="zones" onclick="showView('zones')">
+      <span class="material-symbols-outlined">water_drop</span>
+      Zones
+    </button>
+    <button class="nav-item" data-view="pressure" onclick="showView('pressure')">
+      <span class="material-symbols-outlined">speed</span>
+      Pressure
+    </button>
+    <button class="nav-item" data-view="schedule" onclick="showView('schedule')">
+      <span class="material-symbols-outlined">calendar_month</span>
+      Schedule
+    </button>
+    <button class="nav-item" data-view="log" onclick="showView('log')">
+      <span class="material-symbols-outlined">history</span>
+      Log
+    </button>
+  </nav>
+
+</div><!-- /appScreen -->
+
+<!-- ════════════════════════════════════════════════════════
+     MODALS
+════════════════════════════════════════════════════════ -->
+
+<!-- Schedule modal -->
+<div id="scheduleModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="flex justify-between items-start mb-6">
+      <div>
+        <span style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#737971;display:block;margin-bottom:2px">Zone <span id="schedZoneNum">—</span></span>
+        <h3 id="schedZoneName" class="font-headline text-2xl font-bold text-primary">—</h3>
+      </div>
+      <button onclick="closeScheduleModal()" style="font-size:20px;font-weight:300;color:#737971;background:none;border:none;cursor:pointer;line-height:1;padding:4px">✕</button>
+    </div>
+
+    <div id="schedErr" class="auth-err mb-4"></div>
+
+    <!-- Days -->
+    <div class="mb-5">
+      <label style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:8px">Days</label>
+      <div id="schedDays" class="flex flex-wrap gap-2"></div>
+    </div>
+
+    <!-- Time + duration + label -->
+    <div class="grid grid-cols-3 gap-4 mb-5">
+      <div>
+        <label style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:6px">Start Time</label>
+        <input id="schedStartTime" type="time"
+          class="w-full bg-surface-container-high border-b-2 border-outline px-3 py-2 font-headline focus:outline-none focus:border-primary">
+      </div>
+      <div>
+        <label style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:6px">Duration (min)</label>
+        <input id="schedDuration" type="number" min="1" max="1440" value="30"
+          class="w-full bg-surface-container-high border-b-2 border-outline px-3 py-2 font-headline focus:outline-none focus:border-primary">
+      </div>
+      <div>
+        <label style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:6px">Label (optional)</label>
+        <input id="schedLabel" type="text" placeholder="e.g. Morning"
+          class="w-full bg-surface-container-high border-b-2 border-outline px-3 py-2 font-body focus:outline-none focus:border-primary">
+      </div>
+    </div>
+
+    <button onclick="addSchedule()" class="bg-primary text-white w-full py-3 font-label text-[10px] font-bold uppercase tracking-widest mb-6">Add Schedule</button>
+
+    <!-- Existing schedules -->
+    <div>
+      <span style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:8px">Existing Schedules</span>
+      <div id="scheduleList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Group modal -->
+<div id="groupModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="flex justify-between items-center mb-6">
+      <h3 id="groupModalTitle" class="font-headline text-2xl font-bold text-primary">New Group</h3>
+      <button onclick="closeGroupModal()" style="font-size:20px;font-weight:300;color:#737971;background:none;border:none;cursor:pointer;line-height:1;padding:4px">✕</button>
+    </div>
+
+    <div class="mb-4">
+      <label style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:6px">Group Name</label>
+      <input id="groupName" type="text" placeholder="e.g. Morning Run"
+        class="w-full bg-surface-container-high border-b-2 border-outline px-4 py-3 font-body text-sm focus:outline-none focus:border-primary">
+    </div>
+
+    <div id="groupModalErr" style="display:none;padding:8px 12px;background:#ffdad6;color:#ba1a1a;font-size:12px;font-weight:600;margin-bottom:12px"></div>
+
+    <div style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;margin-bottom:8px">Steps</div>
+    <div id="groupStepsContainer" class="mb-4"></div>
+
+    <div class="flex gap-3">
+      <button onclick="saveGroup()" class="btn primary flex-1" style="font-size:10px;letter-spacing:0.15em">Save Group</button>
+      <button onclick="closeGroupModal()" class="btn secondary" style="font-size:10px;letter-spacing:0.15em">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Group schedule modal -->
+<div id="groupSchedModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="flex justify-between items-center mb-6">
+      <h3 id="groupSchedTitle" class="font-headline text-2xl font-bold text-primary">Schedule Group</h3>
+      <button onclick="closeGroupSchedModal()" style="font-size:20px;font-weight:300;color:#737971;background:none;border:none;cursor:pointer;line-height:1;padding:4px">✕</button>
+    </div>
+
+    <!-- Days -->
+    <div class="mb-4">
+      <label style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:8px">Days</label>
+      <div id="groupSchedDays" class="flex flex-wrap gap-2"></div>
+    </div>
+
+    <!-- Time + label -->
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div>
+        <label style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:6px">Start Time</label>
+        <input id="groupSchedTime" type="time"
+          class="w-full bg-surface-container-high border-b-2 border-outline px-3 py-2 font-headline focus:outline-none focus:border-primary">
+      </div>
+      <div>
+        <label style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:6px">Label (optional)</label>
+        <input id="groupSchedLabel" type="text"
+          class="w-full bg-surface-container-high border-b-2 border-outline px-3 py-2 font-body focus:outline-none focus:border-primary">
+      </div>
+    </div>
+
+    <div id="groupSchedErr" style="display:none;padding:8px 12px;background:#ffdad6;color:#ba1a1a;font-size:12px;font-weight:600;margin-bottom:12px"></div>
+
+    <button onclick="addGroupSchedule()" class="bg-primary text-white w-full py-3 font-label text-[10px] font-bold uppercase tracking-widest mb-6">Add Schedule</button>
+
+    <div>
+      <span style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:8px">Existing Schedules</span>
+      <div id="groupSchedList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Transfer modal -->
+<div id="transferModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:420px">
+    <div class="flex justify-between items-center mb-6">
+      <h3 class="font-headline text-xl font-bold text-primary">Transfer Device</h3>
+      <button onclick="closeTransfer()" style="font-size:20px;font-weight:300;color:#737971;background:none;border:none;cursor:pointer;line-height:1;padding:4px">✕</button>
+    </div>
+    <p id="transferDeviceName" style="font-family:'Public Sans',sans-serif;font-size:12px;color:#424841;margin-bottom:16px"></p>
+    <div class="mb-4">
+      <label style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:6px">Transfer to customer</label>
+      <select id="transferCustomer" class="w-full bg-surface-container-high border-b-2 border-outline px-3 py-2 font-body text-sm focus:outline-none focus:border-primary appearance-none">
+        <option value="">— select customer —</option>
+      </select>
+    </div>
+    <div id="transferErr" class="auth-err mb-4"></div>
+    <div class="flex gap-3">
+      <button onclick="doTransfer()" class="btn primary flex-1" style="font-size:10px;letter-spacing:0.15em">Transfer</button>
+      <button onclick="closeTransfer()" class="btn secondary" style="font-size:10px;letter-spacing:0.15em">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add customer modal -->
+<div id="addCustomerModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:440px">
+    <div class="flex justify-between items-center mb-6">
+      <h3 class="font-headline text-xl font-bold text-primary">Add Customer</h3>
+      <button onclick="closeAddCustomer()" style="font-size:20px;font-weight:300;color:#737971;background:none;border:none;cursor:pointer;line-height:1;padding:4px">✕</button>
+    </div>
+    <div class="mb-4">
+      <label style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:6px">Full Name</label>
+      <input id="custName" type="text" placeholder="John Smith"
+        class="w-full bg-surface-container-high border-b-2 border-outline px-4 py-3 font-body text-sm focus:outline-none focus:border-primary">
+    </div>
+    <div class="mb-4">
+      <label style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:6px">Email</label>
+      <input id="custEmail" type="email" placeholder="john@farm.com"
+        class="w-full bg-surface-container-high border-b-2 border-outline px-4 py-3 font-body text-sm focus:outline-none focus:border-primary">
+    </div>
+    <div class="mb-6">
+      <label style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:6px">Password</label>
+      <input id="custPass" type="password" placeholder="Min. 8 characters"
+        class="w-full bg-surface-container-high border-b-2 border-outline px-4 py-3 font-body text-sm focus:outline-none focus:border-primary">
+    </div>
+    <div id="addCustErr" class="auth-err mb-4"></div>
+    <button onclick="createCustomer()" class="btn primary w-full py-3" style="font-size:10px;letter-spacing:0.2em">Create Account</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SCRIPTS
+════════════════════════════════════════════════════════ -->
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/mqtt.js"></script>
+<script src="js/irrigation.js"></script>
+<script src="js/schedule.js"></script>
+<script src="js/groups.js"></script>
+<script src="js/chart.js"></script>
+<script src="js/main.js"></script>
+<script src="js/admin.js"></script>
+
+<!-- Sync logList between dashboard and log view -->
+<script>
+// Patch renderLog to update both the dashboard snippet and the full log view
+const _origRenderLog = renderLog;
+window.renderLog = function() {
+  // Update dashboard recent events
+  const ul = document.getElementById('logList');
+  // Update log view full list
+  const ulFull = document.getElementById('logListFull');
+  const render = (target, limit) => {
+    if (!target) return;
+    const events = limit ? eventLog.slice(0, limit) : eventLog;
+    if (!events.length) { target.innerHTML = '<li><span class="log-empty">No events yet</span></li>'; return; }
+    target.innerHTML = events.map(e => `<li class="${e.type}"><span class="log-time">${e.time}</span><span class="log-msg">${e.msg}</span></li>`).join('');
+  };
+  render(ul, 8);
+  render(ulFull, 0);
+
+  // Also update dashboard connection status label
+  const badge = document.getElementById('dashIrrigBadge');
+  const connStatus = document.getElementById('dashConnStatus');
+  const nextWater = document.getElementById('dashNextWater');
+  if (badge && typeof irrigDevice !== 'undefined') {
+    if (irrigDevice) {
+      const anyOn = typeof irrigZoneStates !== 'undefined' && Object.values(irrigZoneStates).some(v => v);
+      // status is set live via setZoneState / handleMessage
+    }
+  }
+  if (connStatus && typeof realtimeConnected !== 'undefined') {
+    if (realtimeConnected) {
+      connStatus.textContent = 'Connected';
+    }
+  }
+};
+
+// Also update dashboard supply PSI when irrig supply updates
+const _origHandleMessage = handleMessage;
+window.handleMessage = function(topic, data, packet) {
+  _origHandleMessage(topic, data, packet);
+  // Mirror irrigSupplyVal to dashboard
+  const it = (typeof irrigDevice !== 'undefined' && irrigDevice) ? irrigDevice.mqtt_topic_base : '__none__';
+  if (it !== '__none__' && topic === `${it}/status`) {
+    const psi = parseFloat(data.supply_psi !== undefined ? data.supply_psi : (data.supplyPsi || 0));
+    const dashVal = document.getElementById('dashSupplyVal');
+    const dashBar = document.getElementById('dashSupplyBar');
+    const dashBadge = document.getElementById('dashIrrigBadge');
+    const connStatus = document.getElementById('dashConnStatus');
+    if (dashVal) dashVal.textContent = psi.toFixed(1);
+    if (dashBar) dashBar.style.width = Math.min(100, (psi/100)*100) + '%';
+    if (dashBadge) { dashBadge.textContent = 'online'; dashBadge.className = 'board-status online'; }
+    if (connStatus) connStatus.textContent = 'Operational';
+  }
+};
+
+// Keep dashNextWater updated when schedules load
+const _origRenderUpcoming = renderUpcomingOnDashboard;
+window.renderUpcomingOnDashboard = function() {
+  _origRenderUpcoming();
+  const nextRuns = (typeof getNextRuns === 'function') ? getNextRuns(1) : [];
+  const el = document.getElementById('dashNextWater');
+  if (el) {
+    if (nextRuns.length) {
+      const r = nextRuns[0];
+      const name = (typeof zoneNames !== 'undefined' && zoneNames[r.zone]) ? zoneNames[r.zone] : 'Zone ' + r.zone;
+      el.textContent = name + ' — ' + r.day + ' @ ' + r.time + ' (' + r.duration + ' min)';
+    } else {
+      el.textContent = 'No schedules configured';
+    }
+  }
+};
+</script>
+
+</body>
+</html>
