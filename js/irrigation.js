@@ -82,45 +82,39 @@ function buildZoneCards() {
     const color = ZONE_COLORS[i - 1];
     const card  = document.createElement('div');
     card.id = 'zoneCard' + i;
-    card.className = 'zone-card';
+    card.style.cssText = 'background:#ffffff;padding:24px;display:flex;flex-direction:column;justify-content:space-between;min-height:220px;box-shadow:0 12px 32px rgba(26,28,26,.06);position:relative;overflow:hidden;cursor:pointer;transition:background .2s';
     card.innerHTML = `
-      <div id="zoneBar${i}" style="position:absolute;top:0;left:0;width:4px;height:100%;background:#c2c8bf;transition:background .2s"></div>
+      <div id="zoneBar${i}" style="position:absolute;top:0;left:0;width:4px;height:100%;background:#c2c8bf;transition:background .3s"></div>
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
-        <div style="flex:1;min-width:0">
+        <div style="flex:1;min-width:0;padding-left:8px">
           <span style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971;display:block;margin-bottom:4px">Zone ${String(i).padStart(2,'0')}</span>
-          <div id="zoneName${i}" style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;color:#1a1c1a;cursor:pointer;line-height:1.2" ondblclick="startRename(${i})" title="Double-click to rename">${esc(name)}</div>
-          <input id="zoneNameInput${i}" value="${esc(name)}" style="display:none;font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;color:#1a1c1a;border:none;border-bottom:2px solid #17361d;background:transparent;width:100%;outline:none"
+          <div id="zoneName${i}" style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;color:#17361d;cursor:pointer;line-height:1.2" ondblclick="startRename(${i})" title="Double-click to rename">${esc(name)}</div>
+          <input id="zoneNameInput${i}" value="${esc(name)}" style="display:none;font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;color:#17361d;border:none;border-bottom:2px solid #17361d;background:transparent;width:100%;outline:none"
             onblur="finishRename(${i})"
             onkeydown="if(event.key==='Enter')finishRename(${i});if(event.key==='Escape')cancelRename(${i})">
         </div>
-        <div id="zoneStatus${i}" style="background:#e8e8e5;color:#737971;padding:4px 10px;border-radius:99px;font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;display:flex;align-items:center;gap:4px;white-space:nowrap;cursor:pointer;flex-shrink:0;margin-left:8px;transition:all .2s" onclick="openScheduleModal(${i})">
-          <span class="material-symbols-outlined" style="font-size:14px">schedule</span> Idle
+        <div id="zoneStatus${i}" style="background:#e8e8e5;color:#737971;padding:4px 12px;border-radius:99px;font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;display:flex;align-items:center;gap:4px;white-space:nowrap;cursor:pointer;flex-shrink:0;margin-left:8px;transition:all .2s" onclick="openScheduleModal(${i})">
+          <span class="material-symbols-outlined" style="font-size:12px">schedule</span> Idle
         </div>
       </div>
-      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-top:auto">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;padding-left:8px;margin-top:auto">
         <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
             <input id="zoneDur${i}" type="number" min="1" max="1440" value="30"
-              style="width:56px;background:#e8e8e5;border:none;border-bottom:2px solid #737971;padding:4px 8px;font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;text-align:center;outline:none;transition:.2s"
+              style="width:52px;background:#e8e8e5;border:none;border-bottom:2px solid #737971;padding:4px 6px;font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;text-align:center;outline:none;transition:.2s;color:#1a1c1a"
               onfocus="this.style.borderBottomColor='#17361d'"
               onblur="this.style.borderBottomColor='#737971'"
               onclick="event.stopPropagation()" oninput="event.stopPropagation()">
             <span style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971">min</span>
           </div>
-          <div style="display:flex;gap:4px;margin-bottom:10px">
-            <button style="font-size:9px;font-weight:700;text-transform:uppercase;padding:2px 6px;background:#e8e8e5;color:#737971;border:none;cursor:pointer" onclick="setZoneDur(${i},15);event.stopPropagation()">15m</button>
-            <button style="font-size:9px;font-weight:700;text-transform:uppercase;padding:2px 6px;background:#e8e8e5;color:#737971;border:none;cursor:pointer" onclick="setZoneDur(${i},30);event.stopPropagation()">30m</button>
-            <button style="font-size:9px;font-weight:700;text-transform:uppercase;padding:2px 6px;background:#e8e8e5;color:#737971;border:none;cursor:pointer" onclick="setZoneDur(${i},60);event.stopPropagation()">1h</button>
-            <button style="font-size:9px;font-weight:700;text-transform:uppercase;padding:2px 6px;background:#e8e8e5;color:#737971;border:none;cursor:pointer" onclick="setZoneDur(${i},120);event.stopPropagation()">2h</button>
-          </div>
           <div id="zoneMiniTimeline${i}" class="zone-mini-timeline"></div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:12px">
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:16px">
           <span style="font-family:'Public Sans',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#737971">Water Now</span>
           <label style="position:relative;display:inline-flex;align-items:center;cursor:pointer" onclick="toggleZone(${i});event.preventDefault()">
             <input type="checkbox" id="zoneBtn${i}" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
-            <div id="zoneToggleTrack${i}" style="width:44px;height:24px;background:#e8e8e5;border-radius:99px;position:relative;transition:background .2s">
-              <div id="zoneToggleThumb${i}" style="position:absolute;top:2px;left:2px;width:20px;height:20px;background:white;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>
+            <div id="zoneToggleTrack${i}" style="width:44px;height:26px;background:#e8e8e5;border-radius:99px;position:relative;transition:background .2s">
+              <div id="zoneToggleThumb${i}" style="position:absolute;top:3px;left:3px;width:20px;height:20px;background:white;border-radius:50%;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.25)"></div>
             </div>
           </label>
         </div>
@@ -166,7 +160,7 @@ function setZoneState(zoneNum, on) {
     if (bar)    bar.style.background = color;
     if (toggle) toggle.checked = true;
     if (track)  track.style.background = color;
-    if (thumb)  thumb.style.left = '22px';
+    if (thumb)  thumb.style.left = '21px';
     if (status) {
       status.style.background = '#c7ecc7';
       status.style.color = '#2f4e33';
@@ -177,7 +171,7 @@ function setZoneState(zoneNum, on) {
     if (bar)    bar.style.background = '#c2c8bf';
     if (toggle) toggle.checked = false;
     if (track)  track.style.background = '#e8e8e5';
-    if (thumb)  thumb.style.left = '2px';
+    if (thumb)  thumb.style.left = '3px';
     if (status) {
       status.style.background = '#e8e8e5';
       status.style.color = '#737971';

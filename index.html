@@ -342,9 +342,9 @@ h1,h2,h3 { font-family: 'Space Grotesk', sans-serif; }
             <!-- Left 8-col: headline + metrics -->
             <div class="lg:col-span-8">
               <span class="font-label text-[10px] font-bold uppercase tracking-[0.2em] text-outline mb-3 block">Live Status</span>
-              <h1 class="font-headline text-5xl md:text-6xl font-bold tracking-tighter leading-none mb-8 text-on-surface">IRRIGATION<br><span class="text-primary">FIELD STATUS</span></h1>
+              <h1 class="font-headline text-6xl md:text-7xl font-bold tracking-tighter leading-none mb-8 text-on-surface">IRRIGATION<br><span class="text-primary">FIELD STATUS</span></h1>
               <!-- Metric tiles -->
-              <div class="grid grid-cols-3 gap-1">
+              <div class="grid grid-cols-3" style="gap:2px">
                 <div class="bg-surface-container-low p-5 flex flex-col justify-between">
                   <span class="card-label">Supply Pressure</span>
                   <div>
@@ -446,7 +446,7 @@ h1,h2,h3 { font-family: 'Space Grotesk', sans-serif; }
             </div>
 
             <!-- Zone grid -->
-            <div id="zoneGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div id="zoneGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <!-- JS builds zone cards here -->
             </div>
 
@@ -489,7 +489,7 @@ h1,h2,h3 { font-family: 'Space Grotesk', sans-serif; }
           </div>
 
           <!-- Filter header / status bar -->
-          <div id="filterHeader" style="display:none" class="flex items-center justify-between mb-6 p-4 bg-surface-container-low">
+          <div id="filterHeader" class="section-header flex items-center justify-between mb-6 p-4 bg-surface-container-low" style="display:none">
             <div class="flex items-center gap-4">
               <span id="filterStatus" class="board-status offline">Offline</span>
               <span id="filterUptime" style="font-family:'Public Sans',sans-serif;font-size:11px;color:#737971;display:none"></span>
@@ -500,20 +500,23 @@ h1,h2,h3 { font-family: 'Space Grotesk', sans-serif; }
           <!-- Filter section -->
           <div id="filterSection" style="display:none">
             <!-- Pressure bento -->
-            <div class="grid grid-cols-3 gap-1 mb-6">
-              <div class="bg-surface-container-lowest p-6" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+            <div class="grid grid-cols-3 mb-6" style="gap:2px">
+              <div class="bg-surface-container-lowest p-6 relative overflow-hidden" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+                <div style="position:absolute;top:0;left:0;width:4px;height:100%;background:#12629d"></div>
                 <span class="card-label">Inlet Pressure</span>
                 <span id="inletVal" class="card-value">—</span>
                 <span class="card-unit">PSI</span>
                 <div class="card-bar"><div id="inletBar" class="card-bar-fill" style="width:0%"></div></div>
               </div>
-              <div class="bg-surface-container-lowest p-6" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+              <div class="bg-surface-container-lowest p-6 relative overflow-hidden" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+                <div style="position:absolute;top:0;left:0;width:4px;height:100%;background:#17361d"></div>
                 <span class="card-label">Outlet Pressure</span>
                 <span id="outletVal" class="card-value">—</span>
                 <span class="card-unit">PSI</span>
                 <div class="card-bar"><div id="outletBar" class="card-bar-fill" style="width:0%"></div></div>
               </div>
-              <div class="bg-surface-container-lowest p-6" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+              <div class="bg-surface-container-lowest p-6 relative overflow-hidden" style="box-shadow:0 12px 32px rgba(26,28,26,0.06)">
+                <div style="position:absolute;top:0;left:0;width:4px;height:100%;background:#5f1400"></div>
                 <span class="card-label">Differential</span>
                 <span id="diffVal" class="card-value good">—</span>
                 <span class="card-unit">PSI</span>
